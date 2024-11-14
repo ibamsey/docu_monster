@@ -1,53 +1,96 @@
-import Link from "next/link";
+'use client'
 
-import { LatestPost } from "~/app/_components/post";
-import { api, HydrateClient } from "~/trpc/server";
+import { useState, useEffect } from 'react'
+import Markdown from 'react-markdown'
+import { Sidebar } from '../components/sidebar'
+import { ScrollArea } from "../components/ui/scroll-area"
 
-export default async function Home() {
-  const hello = await api.post.hello({ text: "from tRPC" });
+import { TreeNode } from "../app/api/directory-tree/route"
 
-  void api.post.getLatest.prefetch();
+
+export default function Home() {
+  const [tree, setTree] = useState<TreeNode | null>(null)
+  const [selectedFile, setSelectedFile] = useState<string | null>(null)
+  const [content, setContent] = useState('Select a file to view its content.')
+
+  useEffect(() => {
+    async function fetchData() {
+      console.log("tree")
+      const response = await fetch('/api/directory-tree')
+      const data: TreeNode = await response.json()
+      if(data) {
+        console.log("tree here",data)
+      }
+      setTree(data)
+
+      // Set the default file
+      const defaultFile = findFirstMarkdownFile(data)
+      console.log('first',defaultFile)
+      if (defaultFile) {
+        setSelectedFile(defaultFile.link)
+      }
+    }
+    fetchData()
+  }, [])
+
+  useEffect(() => {
+    async function fetchContent() {
+      console.log("first",selectedFile)
+      if (selectedFile) {
+        const response = await fetch(`/api/file-content?file=${encodeURIComponent(selectedFile)}`)
+        const data = await response.text()
+        setContent(data)
+      }
+    }
+    fetchContent()
+  }, [selectedFile])
+
+  const handleSelectFile = (path: string) => {function findFirstMarkdownFile(tree: TreeNode): TreeNode | null {
+    if (tree.type === 'file') {
+      return tree
+    } else if (tree.type === 'directory' && tree.children) {
+      for (const child of tree.children) {
+        const result = findFirstMarkdownFile(child)
+        if (result) return result
+      }
+    }
+    return null
+  }
+    setSelectedFile(path)
+  }
 
   return (
-    <HydrateClient>
-      <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
-        <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-          <h1 className="text-5xl font-extrabold tracking-tight sm:text-[5rem]">
-            Create <span className="text-[hsl(280,100%,70%)]">T3</span> App
-          </h1>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
-            <Link
-              className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-              href="https://create.t3.gg/en/usage/first-steps"
-              target="_blank"
-            >
-              <h3 className="text-2xl font-bold">First Steps →</h3>
-              <div className="text-lg">
-                Just the basics - Everything you need to know to set up your
-                database and authentication.
-              </div>
-            </Link>
-            <Link
-              className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-              href="https://create.t3.gg/en/introduction"
-              target="_blank"
-            >
-              <h3 className="text-2xl font-bold">Documentation →</h3>
-              <div className="text-lg">
-                Learn more about Create T3 App, the libraries it uses, and how
-                to deploy it.
-              </div>
-            </Link>
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-2xl text-white">
-              {hello ? hello.greeting : "Loading tRPC query..."}
-            </p>
-          </div>
-
-          <LatestPost />
-        </div>
+    <div className="flex h-screen">
+      {tree && <Sidebar tree={tree} onSelectFile={handleSelectFile} />}
+      <main className="flex-1 p-6 overflow-auto">
+        <ScrollArea className="h-full">
+          <Markdown>{content}</Markdown> 
+        </ScrollArea>
       </main>
-    </HydrateClient>
-  );
+    </div>
+  )
+}
+
+function findFirstMarkdownFile(tree: TreeNode): TreeNode | null {
+  if (tree.type === 'file'  ) {
+    console.log("found file")
+    return tree;
+  } else if (tree.type === 'directory' && tree.items) {
+    console.log("found dir")
+    for (const child of tree.items) {
+      console.log("child",child)
+      const result = findFirstMarkdownFile(child);
+      if (result) return result;
+    }
+  }
+  return null;
+}
+
+// Helper function to get the display name of a node
+export function getDisplayName(node: TreeNode): string {
+  if (node.type === 'directory') {
+    return node.name; // This will be the content of the first line in index.md
+  } else {
+    return node.name.endsWith('.md') ? node.name.slice(0, -3) : node.name;
+  }
 }

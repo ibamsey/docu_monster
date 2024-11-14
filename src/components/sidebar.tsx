@@ -7,13 +7,9 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "../components/ui/collapsible"
+import { TreeNode } from "../app/api/directory-tree/route"
 
-interface TreeNode {
-  name: string
-  path: string
-  type: 'file' | 'directory'
-  children?: TreeNode[]
-}
+
 
 interface SidebarProps {
   tree: TreeNode
@@ -38,10 +34,10 @@ function TreeNode({ node, onSelectFile }: { node: TreeNode; onSelectFile: (path:
       <Button
         variant="ghost"
         className="w-full justify-start"
-        onClick={() => onSelectFile(node.path)}
+        onClick={() => onSelectFile(node.link)}
       >
         <File className="mr-2 h-4 w-4" />
-        {node.name}
+        {node.label}
       </Button>
     )
   }
@@ -49,15 +45,15 @@ function TreeNode({ node, onSelectFile }: { node: TreeNode; onSelectFile: (path:
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <CollapsibleTrigger asChild>
-        <Button variant="ghost" className="w-full justify-start">
+        <Button variant="ghost" className="w-full justify-start" onClick={() => onSelectFile(node.link)}>
           <ChevronRight className={`mr-2 h-4 w-4 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
           <Folder className="mr-2 h-4 w-4" />
-          {node.name}
+          {node.label}
         </Button>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        {node.children?.map((child) => (
-          <div key={child.path} className="ml-4">
+        {node.items?.map((child) => (
+          <div key={child.link} className="ml-4">
             <TreeNode node={child} onSelectFile={onSelectFile} />
           </div>
         ))}
